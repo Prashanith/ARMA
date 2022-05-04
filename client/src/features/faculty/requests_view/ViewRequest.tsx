@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { CloudDownload } from "@material-ui/icons";
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Calendar } from "react-modern-calendar-datepicker";
 import { useQuery } from "react-query";
 import { useParams } from "react-router-dom";
@@ -24,6 +24,7 @@ export default function RequestsView() {
   const {id} = useParams()
   const {status,data:event,error} = useQuery<Event,Error>(['eventByID',id],()=>fetchEventById(id),{retry:false})
   
+  const [eventDays, seteventDays] = useState(null);
   const [showDialog, setShowDialog] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [action, setAction] = useState<string>(actions.NONE);
@@ -31,30 +32,69 @@ export default function RequestsView() {
 
   const { faculty } = useUser();
 
+  async function getEventInfo() {
+    try {
+      console.log("Trying");
+      
+      const res = await axiosInstance.get(
+        process.env.REACT_APP_SERVER_URL+"events/getEvent/"+id);
+        if(res.data.status===1){
+          console.log(res.data.response);
+          let dates = res.data.response.eventDates;
+          for (let i = 0; i < dates.length; i++) {
+            let d = new Date(dates[i]);
+            dates[i] = {
+              day:d.getDate(),
+              month:d.getMonth()+1,
+              year:d.getFullYear()
+            }                 
+          }
+          seteventDays(dates);
+        }else{
+          console.log("Error");
+          
+          // setError("Unable to load event details");
+        }
+    } catch (error) {
+      // setError(error.toString())
+      console.log(error);
+      
+           
+    }
+    setLoading(false);
+  }
+  useEffect(() => {
+    console.log("Loading");
+    
+    getEventInfo();     
+  }, [])
+
   if(status === 'loading'){
     return <p>loading</p>
   }
   if(status === 'error'){
     return <p>{error.message}</p>
   }
+
   
-  const preselectedDays = [
-    {
-      year: 2019,
-      month: 10,
-      day: 2,
-    },
-    {
-      year: 2019,
-      month: 10,
-      day: 15,
-    },
-    {
-      year: 2019,
-      month: 10,
-      day: 30,
-    },
-  ];
+  // const preselectedDays = [
+  //   {
+  //     year: 2019,
+  //     month: 10,
+  //     day: 2,
+  //   },
+  //   {
+  //     year: 2019,
+  //     month: 10,
+  //     day: 15,
+  //   },
+  //   {
+  //     year: 2019,
+  //     month: 10,
+  //     day: 30,
+  //   },
+  // ];
+
 
   const facilities = ['speakers', 'mic', 'projector', 'chairs', 'router']
 
@@ -100,6 +140,8 @@ export default function RequestsView() {
     
   }
 
+  
+  
   async function rejectEvent() {
     console.log(message);
     console.log(action);
@@ -288,7 +330,10 @@ export default function RequestsView() {
       </div>
         <div className="flex flex-col gap-8" >
         <span className="text-arma-gray font-medium text-2xl ">Event Dates</span>
-        <Calendar value={preselectedDays} colorPrimary="#0047FF" shouldHighlightWeekends />
+        {
+          eventDays &&
+          <Calendar value={eventDays} colorPrimary="#0047FF" shouldHighlightWeekends />
+        }  
         </div>
       </div>
      
